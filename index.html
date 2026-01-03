@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Horizon | Elite Reserve System</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Outfit:wght@200;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #0a0a0b;
+            --surface: #161618;
+            --accent-gold: #c5a059;
+            --accent-gold-dim: #8e7341;
+            --royal-red: #8b0000;
+            --text-main: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --glass-gold: rgba(197, 160, 89, 0.1);
+            --transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* --- LUXURY LOADER --- */
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loader-logo {
+            font-family: 'Cinzel', serif;
+            font-size: 3rem;
+            color: var(--accent-gold);
+            letter-spacing: 12px;
+            margin-bottom: 20px;
+            opacity: 0;
+        }
+
+        .progress-track {
+            width: 250px;
+            height: 1px;
+            background: #333;
+            position: relative;
+        }
+
+        .progress-fill {
+            position: absolute;
+            left: 0; top: 0; height: 100%;
+            background: var(--accent-gold);
+            width: 0%;
+        }
+
+        /* --- MAIN LAYOUT --- */
+        .app-container {
+            display: grid;
+            grid-template-columns: 120px 1fr 400px;
+            height: 100vh;
+            opacity: 0;
+        }
+
+        /* --- LIFT SYSTEM --- */
+        .lift-shaft {
+            background: #000;
+            border-right: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 0;
+            position: relative;
+        }
+
+        .lift-rail {
+            position: absolute;
+            width: 2px;
+            height: 80%;
+            background: linear-gradient(to bottom, transparent, var(--accent-gold), transparent);
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .floor-trigger {
+            width: 50px;
+            height: 50px;
+            margin: 8px 0;
+            border-radius: 50%;
+            border: 1px solid #333;
+            background: transparent;
+            color: var(--text-dim);
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 5;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .floor-trigger.active {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            box-shadow: 0 0 15px var(--glass-gold);
+            background: #111;
+        }
+
+        .lift-cabin {
+            position: absolute;
+            width: 70px;
+            height: 50px;
+            background: var(--accent-gold);
+            left: 25px;
+            bottom: 40px; 
+            border-radius: 4px;
+            transition: bottom 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #000;
+            box-shadow: 0 0 30px rgba(197, 160, 89, 0.4);
+        }
+
+        /* --- VIEWPORT & PLAN --- */
+        .viewport {
+            background: radial-gradient(circle at center, #1a1a1c 0%, #0a0a0b 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            position: relative;
+        }
+
+        .category-legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .legend-item {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.normal { background: #555; }
+        .dot.high { background: var(--accent-gold); }
+        .dot.luxury { background: var(--royal-red); }
+
+        .floor-canvas {
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 20px;
+            perspective: 1000px;
+        }
+
+        .suite-card {
+            background: var(--surface);
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .suite-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: #333;
+        }
+
+        .suite-card.normal::before { background: #555; }
+        .suite-card.high::before { background: var(--accent-gold); }
+        .suite-card.luxury::before { background: var(--royal-red); }
+
+        .suite-card:hover {
+            transform: translateY(-5px) translateZ(20px);
+            border-color: #444;
+            background: #1c1c1e;
+        }
+
+        .suite-card.selected {
+            border-color: var(--accent-gold);
+            background: var(--glass-gold);
+        }
+
+        .suite-card.booked {
+            opacity: 0.3;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+
+        /* --- SIDE CONSOLE --- */
+        .console {
+            background: var(--surface);
+            border-left: 1px solid #222;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .luxury-input {
+            margin-bottom: 30px;
+        }
+
+        .luxury-input label {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--accent-gold);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .luxury-input input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #333;
+            color: #fff;
+            padding: 10px 0;
+            font-size: 1rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .luxury-input input:focus {
+            border-bottom-color: var(--accent-gold);
+        }
+
+        .meal-box {
+            background: #000;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+
+        .meal-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+        }
+
+        .custom-check {
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--accent-gold);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .custom-check.active {
+            background: var(--accent-gold);
+        }
+
+        .price-summary {
+            border-top: 1px solid #333;
+            padding-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .reserve-btn {
+            width: 100%;
+            padding: 20px;
+            background: var(--accent-gold);
+            color: #000;
+            border: none;
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .reserve-btn:hover {
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(197, 160, 89, 0.3);
+        }
+
+        .master-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid #333;
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .master-btn:hover {
+            color: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+
+        /* --- MODAL --- */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .invoice-card {
+            background: #fff;
+            color: #000;
+            width: 400px;
+            padding: 40px;
+            border-radius: 2px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loader-overlay" id="loader">
+        <div class="loader-logo">GRAND HORIZON</div>
+        <div class="progress-track">
+            <div class="progress-fill" id="load-progress"></div>
+        </div>
+    </div>
+
+    <main class="app-container" id="app">
+        <aside class="lift-shaft">
+            <div class="lift-rail"></div>
+            <div class="lift-cabin" id="cabin">
+                <span style="font-size: 0.6rem; opacity: 0.7;">FLOOR</span>
+                <b id="cabin-num" style="font-size: 1.2rem;">01</b>
+            </div>
+            <div id="floor-list" style="display:flex; flex-direction:column-reverse; margin-top: auto; position: relative;">
+            </div>
+        </aside>
+
+        <section class="viewport">
+            <header style="text-align: center; margin-bottom: 40px;">
+                <h1 style="font-family: 'Cinzel'; letter-spacing: 4px; color: var(--accent-gold);">ROYAL WING SELECTION</h1>
+                <div class="category-legend">
+                    <div class="legend-item"><span class="dot normal"></span> Deluxe</div>
+                    <div class="legend-item"><span class="dot high"></span> Executive</div>
+                    <div class="legend-item"><span class="dot luxury"></span> Royal Luxury</div>
+                </div>
+            </header>
+
+            <div class="floor-canvas" id="floor-canvas"></div>
+        </section>
+
+        <aside class="console">
+            <h2 style="font-family: 'Cinzel'; margin-bottom: 30px; border-bottom: 1px solid var(--accent-gold); padding-bottom: 10px;">RESERVATION</h2>
+            
+            <div class="luxury-input">
+                <label>Lead Guest Name</label>
+                <input type="text" id="guest-name" placeholder="Enter Full Name">
+            </div>
+
+            <div class="luxury-input">
+                <label>Contact Number</label>
+                <input type="tel" id="guest-phone" placeholder="+91 XXXX XXX XXX">
+            </div>
+
+            <div class="meal-box">
+                <label style="font-size: 0.6rem; color: var(--accent-gold); letter-spacing: 1px; margin-bottom: 15px; display: block;">CURATED GASTRONOMY</label>
+                
+                <div class="meal-item">
+                    <span>Artisan Breakfast</span>
+                    <div class="custom-check" data-price="800" onclick="ToggleMeal(this)"></div>
+                </div>
+                <div class="meal-item">
+                    <span>Gourmet Buffet Lunch</span>
+                    <div class="custom-check" data-price="1500" onclick="ToggleMeal(this)"></div>
+                </div>
+                <div class="meal-item">
+                    <span>Imperial Dinner</span>
+                    <div class="custom-check" data-price="2500" onclick="ToggleMeal(this)"></div>
+                </div>
+                <div class="meal-item">
+                    <span>Midnight Caviar Service</span>
+                    <div class="custom-check" data-price="5000" onclick="ToggleMeal(this)"></div>
+                </div>
+            </div>
+
+            <div class="price-summary" id="price-card" style="opacity: 0;">
+                <div class="price-row">
+                    <span id="summ-room-name">Suite 101</span>
+                    <span id="summ-room-price">₹0</span>
+                </div>
+                <div class="price-row">
+                    <span>Meal Add-ons</span>
+                    <span id="summ-meal-price">₹0</span>
+                </div>
+                <div class="price-row" style="color: var(--accent-gold); font-weight: 700; font-size: 1.2rem; margin-top: 15px;">
+                    <span>Total</span>
+                    <span id="summ-total">₹0</span>
+                </div>
+            </div>
+
+            <button class="reserve-btn" onclick="Engine.processBooking()">CONFIRM RESERVE</button>
+            <button class="master-btn" onclick="Engine.exportLibrary()">DOWNLOAD MASTER LIBRARY</button>
+        </aside>
+    </main>
+
+    <div class="modal" id="modal">
+        <div class="invoice-card">
+            <h1 style="font-family: 'Cinzel'; margin-bottom: 10px;">INVOICE</h1>
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 20px;">GRAND HORIZON PROPERTIES</p>
+            <div id="invoice-content" style="text-align: left; font-size: 0.9rem; line-height: 2; margin-bottom: 20px;"></div>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GrandHorizonPayment" alt="QR">
+            <p style="font-size: 0.7rem; margin-top: 10px;">SCAN TO PAY VIA UPI</p>
+            <button class="reserve-btn" style="margin-top: 20px;" onclick="Engine.finalize()">DOWNLOAD & FINISH</button>
+        </div>
+    </div>
+
+    <script>
+        const Engine = (() => {
+            const state = {
+                currentFloor: 1,
+                selectedSuite: null,
+                mealTotal: 0,
+                occupied: JSON.parse(localStorage.getItem('gh_occupied_v2')) || [],
+                categories: {
+                    normal: { name: 'Deluxe', base: 5000, icon: 'fa-bed' },
+                    high: { name: 'Executive', base: 12000, icon: 'fa-crown' },
+                    luxury: { name: 'Royal Luxury', base: 35000, icon: 'fa-gem' }
+                }
+            };
+
+            const init = () => {
+                _animateLoader();
+                _renderFloorsNav();
+                _renderSuites(1);
+            };
+
+            const _animateLoader = () => {
+                const tl = gsap.timeline();
+                tl.to(".loader-logo", { opacity: 1, y: -20, duration: 1 });
+                tl.to("#load-progress", { width: "100%", duration: 2 }, "-=0.5");
+                tl.to("#loader", { opacity: 0, pointerEvents: "none", duration: 0.8 });
+                tl.to("#app", { opacity: 1, duration: 1 });
+            };
+
+            const _renderFloorsNav = () => {
+                const container = document.getElementById('floor-list');
+                for(let i=1; i<=10; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = `floor-trigger ${i===1?'active':''}`;
+                    btn.id = `f-${i}`;
+                    btn.innerHTML = i.toString().padStart(2, '0');
+                    btn.onclick = () => Engine.changeFloor(i);
+                    container.appendChild(btn);
+                }
+            };
+
+            const _getCategory = (floor) => {
+                if(floor <= 4) return 'normal';
+                if(floor <= 8) return 'high';
+                return 'luxury';
+            };
+
+            const _renderSuites = (floor) => {
+                const canvas = document.getElementById('floor-canvas');
+                canvas.innerHTML = '';
+                const catKey = _getCategory(floor);
+                const cat = state.categories[catKey];
+
+                for(let i=1; i<=12; i++) {
+                    const id = `${floor}${i.toString().padStart(2, '0')}`;
+                    const isBooked = state.occupied.includes(id);
+                    
+                    const div = document.createElement('div');
+                    div.className = `suite-card ${catKey} ${isBooked ? 'booked' : ''}`;
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <b style="font-size: 1.2rem;">${id}</b>
+                            <i class="fa-solid ${cat.icon}" style="color:var(--accent-gold)"></i>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.6rem; color: var(--text-dim); text-transform:uppercase;">${cat.name}</p>
+                            <p style="color: var(--accent-gold); font-weight: 600;">₹${cat.base.toLocaleString()}</p>
+                        </div>
+                    `;
+                    if(!isBooked) div.onclick = () => _selectSuite(id, cat.base, div);
+                    canvas.appendChild(div);
+                }
+            };
+
+            const _selectSuite = (id, price, el) => {
+                state.selectedSuite = { id, price };
+                document.querySelectorAll('.suite-card').forEach(s => s.classList.remove('selected'));
+                el.classList.add('selected');
+                updatePricing();
+            };
+
+            const changeFloor = (f) => {
+                if(f === state.currentFloor) return;
+                state.currentFloor = f;
+                
+                document.querySelectorAll('.floor-trigger').forEach(b => b.classList.remove('active'));
+                document.getElementById(`f-${f}`).classList.add('active');
+                
+                const offset = (f - 1) * 66; 
+                document.getElementById('cabin').style.bottom = `${40 + offset}px`;
+                document.getElementById('cabin-num').innerText = f.toString().padStart(2, '0');
+
+                gsap.to("#floor-canvas", { opacity: 0, y: 20, duration: 0.3, onComplete: () => {
+                    _renderSuites(f);
+                    gsap.to("#floor-canvas", { opacity: 1, y: 0, duration: 0.3 });
+                }});
+            };
+
+            const updatePricing = () => {
+                if(!state.selectedSuite) return;
+                const total = state.selectedSuite.price + state.mealTotal;
+                
+                document.getElementById('price-card').style.opacity = 1;
+                document.getElementById('summ-room-name').innerText = `Suite ${state.selectedSuite.id}`;
+                document.getElementById('summ-room-price').innerText = `₹${state.selectedSuite.price.toLocaleString()}`;
+                document.getElementById('summ-meal-price').innerText = `₹${state.mealTotal.toLocaleString()}`;
+                document.getElementById('summ-total').innerText = `₹${total.toLocaleString()}`;
+            };
+
+            const processBooking = () => {
+                const name = document.getElementById('guest-name').value;
+                const phone = document.getElementById('guest-phone').value;
+                if(!name || !phone || !state.selectedSuite) return alert("Please enter Name, Contact and Select a Suite");
+
+                const cat = state.categories[_getCategory(state.currentFloor)];
+                const content = `
+                    <b>Guest:</b> ${name}<br>
+                    <b>Phone:</b> ${phone}<br>
+                    <b>Room:</b> ${state.selectedSuite.id} (${cat.name})<br>
+                    <b>Base Rate:</b> ₹${state.selectedSuite.price.toLocaleString()}<br>
+                    <b>Meals:</b> ₹${state.mealTotal.toLocaleString()}<br>
+                    <hr style="margin: 10px 0;">
+                    <b>Total Payable:</b> ₹${(state.selectedSuite.price + state.mealTotal).toLocaleString()}
+                `;
+                
+                document.getElementById('invoice-content').innerHTML = content;
+                document.getElementById('modal').style.display = 'flex';
+            };
+
+            const finalize = () => {
+                const name = document.getElementById('guest-name').value;
+                const phone = document.getElementById('guest-phone').value;
+                const suiteId = state.selectedSuite.id;
+                const total = state.selectedSuite.price + state.mealTotal;
+                const category = state.categories[_getCategory(state.currentFloor)].name;
+
+                // 1. SAVE TO LIBRARY (Storage)
+                const bookingData = {
+                    "Booking Date": new Date().toLocaleString(),
+                    "Guest Name": name,
+                    "Phone": phone,
+                    "Suite": suiteId,
+                    "Tier": category,
+                    "Grand Total": total
+                };
+                
+                let library = JSON.parse(localStorage.getItem('gh_master_library')) || [];
+                library.push(bookingData);
+                localStorage.setItem('gh_master_library', JSON.stringify(library));
+
+                // 2. WHATSAPP REDIRECT
+                const cleanPhone = phone.replace(/\D/g, '');
+                const waMsg = `*GRAND HORIZON RECEIPT*%0A*Guest:* ${name}%0A*Room:* ${suiteId}%0A*Total:* ₹${total.toLocaleString()}%0A*Status:* Confirmed`;
+                window.open(`https://wa.me/${cleanPhone}?text=${waMsg}`, '_blank');
+
+                // 3. GENERATE EXCEL FOR GUEST
+                const ws = XLSX.utils.json_to_sheet([bookingData]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Receipt");
+                XLSX.writeFile(wb, `Receipt_${suiteId}.xlsx`);
+
+                // 4. MARK OCCUPIED & RELOAD
+                state.occupied.push(suiteId);
+                localStorage.setItem('gh_occupied_v2', JSON.stringify(state.occupied));
+                
+                location.reload();
+            };
+
+            const exportLibrary = () => {
+                const data = JSON.parse(localStorage.getItem('gh_master_library')) || [];
+                if(data.length === 0) return alert("Library is currently empty.");
+                
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Master_Library");
+                XLSX.writeFile(wb, "GrandHorizon_Master_Records.xlsx");
+            };
+
+            return { init, changeFloor, updatePricing, state, processBooking, finalize, exportLibrary };
+        })();
+
+        function ToggleMeal(el) {
+            el.classList.toggle('active');
+            const price = parseInt(el.getAttribute('data-price'));
+            if(el.classList.contains('active')) {
+                Engine.state.mealTotal += price;
+            } else {
+                Engine.state.mealTotal -= price;
+            }
+            Engine.updatePricing();
+        }
+
+        Engine.init();
+    </script>
+</body>
+</html>
